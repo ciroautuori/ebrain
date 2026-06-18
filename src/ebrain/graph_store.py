@@ -17,7 +17,7 @@ from ebrain.db import fetchone
 
 _ENTITY_KINDS = frozenset({
     "person", "company", "project", "concept", "document",
-    "tool", "brand", "client", "product", "infra",
+    "tool", "brand", "client", "product", "infra", "platform", "framework",
 })
 _EDGE_KINDS = frozenset({
     "works_at", "owns", "relates_to", "depends_on",
@@ -28,13 +28,24 @@ _EDGE_KINDS = frozenset({
 class KnowledgeGraph:
     """PostgreSQL-backed knowledge graph with typed entities and edges."""
 
+    def __init__(self) -> None:
+        self._initialized = False
+
+    async def _ensure_schema(self) -> None:
+        if self._initialized:
+            return
+        from ebrain.db import ensure_schema
+        await ensure_schema()
+        self._initialized = True
+
     async def add_entity(  # noqa: E501
         self, eid: str, name: str, *, kind: str = "concept", tags: list[str] | None = None, metadata: dict | None = None,
     ) -> Entity:
+        await self._ensure_schema()
         if kind not in _ENTITY_KINDS:
             raise ValueError(f"unknown entity kind: {kind} (allowed: {sorted(_ENTITY_KINDS)})")
         await execute(
-            """INSERT INTO entities (id, name, kind, tags, metadata)
+            """INSERT INTO ebrain_entities (id, name, kind, tags, metadata)
                VALUES ($1, $2, $3, $4, $5)
                ON CONFLICT(id) DO UPDATE SET name=$2, kind=$3, tags=$4, metadata=$5""",
             eid, name, kind, json.dumps(tags or []), json.dumps(metadata or {}),
@@ -42,7 +53,8 @@ class KnowledgeGraph:
         return Entity(id=eid, name=name, kind=kind, tags=tags or [])
 
     async def get_entity(self, eid: str) -> Entity | None:
-        row = await fetchone("SELECT * FROM entities WHERE id = $1", eid)
+        await self._ensure_schema()
+        row = await fetchone("SELECT * FROM ebrain_entities WHERE id = $1", eid)
         if not row:
             return None
         return Entity(
@@ -52,12 +64,13 @@ class KnowledgeGraph:
         )
 
     async def list_entities(self, kind: str | None = None, limit: int = 100) -> list[Entity]:
+        await self._ensure_schema()
         if kind and kind not in _ENTITY_KINDS:
             raise ValueError(f"unknown entity kind: {kind}")
         if kind:
-            rows = await fetch("SELECT * FROM entities WHERE kind = $1 ORDER BY name LIMIT $2", kind, limit)
+            rows = await fetch("SELECT * FROM ebrain_entities WHERE kind = $1 ORDER BY name LIMIT $2", kind, limit)
         else:
-            rows = await fetch("SELECT * FROM entities ORDER BY kind, name LIMIT $1", limit)
+            rows = await fetch("SELECT * FROM ebrain_entities ORDER BY kind, name LIMIT $1", limit)
         return [
             Entity(
                 id=r["id"], name=r["name"], kind=r["kind"],
@@ -68,9 +81,10 @@ class KnowledgeGraph:
         ]
 
     async def search_entities(self, query: str, limit: int = 10) -> list[Entity]:
+        await self._ensure_schema()
         pattern = f"%{query}%"
         rows = await fetch(  # noqa: E501
-            """SELECT * FROM entities
+            """SELECT * FROM ebrain_entities
                WHERE name ILIKE $1 OR id ILIKE $1
                ORDER BY name LIMIT $2""",
             pattern, limit,
@@ -85,10 +99,11 @@ class KnowledgeGraph:
         ]
 
     async def count_entities(self, kind: str | None = None) -> int:
+        await self._ensure_schema()
         if kind:
-            row = await fetchone("SELECT COUNT(*) as cnt FROM entities WHERE kind = $1", kind)
+            row = await fetchone("SELECT COUNT(*) as cnt FROM ebrain_entities WHERE kind = $1", kind)
         else:
-            row = await fetchone("SELECT COUNT(*) as cnt FROM entities")
+            row = await fetchone("SELECT COUNT(*) as cnt FROM ebrain_entities")
         return row["cnt"] if row else 0
 
     # ── Edges ──────────────────────────────────────────────────────────
@@ -99,7 +114,7 @@ class KnowledgeGraph:
         if kind not in _EDGE_KINDS:
             raise ValueError(f"unknown edge kind: {kind} (allowed: {sorted(_EDGE_KINDS)})")
         await execute(
-            """INSERT INTO edges (source_id, target_id, kind, weight)
+            """INSERT INTO ebrain_edges (source_id, target_id, kind, weight)
                VALUES ($1, $2, $3, $4)
                ON CONFLICT DO NOTHING""",
             source_id, target_id, kind, weight,
@@ -119,7 +134,7 @@ class KnowledgeGraph:
             f"""SELECT e.*,  # noqa: W291
                        src.name as source_name, src.kind as source_kind,
                        tgt.name as target_name, tgt.kind as target_kind
-                FROM edges e
+                FROM ebrain_edges e
                 JOIN entities src ON e.source_id = src.id
                 JOIN entities tgt ON e.target_id = tgt.id
                 WHERE {where}
@@ -137,6 +152,7 @@ class KnowledgeGraph:
         ]
 
     async def shortest_path(self, from_id: str, to_id: str, max_depth: int = 5) -> list[str] | None:
+        await self._ensure_schema()
         """BFS shortest path between two entities. Returns list of entity IDs or None."""
         if from_id == to_id:
             return [from_id]
@@ -150,7 +166,7 @@ class KnowledgeGraph:
                 continue
 
             rows = await fetch(
-                """SELECT source_id, target_id FROM edges
+                """SELECT source_id, target_id FROM ebrain_edges
                    WHERE source_id = $1 OR target_id = $1""",
                 current,
             )
@@ -164,14 +180,16 @@ class KnowledgeGraph:
         return None
 
     async def stats(self) -> dict[str, Any]:
-        entities = await fetchone("SELECT COUNT(*) as cnt FROM entities")
-        edges = await fetchone("SELECT COUNT(*) as cnt FROM edges")
+        await self._ensure_schema()
+        entities = await fetchone("SELECT COUNT(*) as cnt FROM ebrain_entities")
+        edges = await fetchone("SELECT COUNT(*) as cnt FROM ebrain_edges")
         return {
             "total_entities": entities["cnt"] if entities else 0,
             "total_edges": edges["cnt"] if edges else 0,
         }
 
     async def auto_link(self, entity_id: str, text: str) -> list[str]:
+        await self._ensure_schema()
         """Find other entities mentioned in text and create edges automatically."""
         all_entities = await self.list_entities(limit=500)
         linked: list[str] = []

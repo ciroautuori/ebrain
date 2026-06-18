@@ -17,7 +17,7 @@ from ebrain.db import fetch
 _log = logging.getLogger("ebrain.memory.l0")
 
 L0_SCHEMA = """
-CREATE TABLE IF NOT EXISTS memory_l0_conversations (
+CREATE TABLE IF NOT EXISTS ebrain_memory_l0_conversations (
     id              BIGSERIAL PRIMARY KEY,
     session_id      TEXT NOT NULL,
     turn_number     INT NOT NULL DEFAULT 0,
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS memory_l0_conversations (
     recorded_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_memory_l0_session
-    ON memory_l0_conversations (session_id, turn_number);
+CREATE INDEX IF NOT EXISTS idx_ebrain_memory_l0_session
+    ON ebrain_memory_l0_conversations (session_id, turn_number);
 
-CREATE INDEX IF NOT EXISTS idx_memory_l0_recorded
-    ON memory_l0_conversations (recorded_at);
+CREATE INDEX IF NOT EXISTS idx_ebrain_memory_l0_recorded
+    ON ebrain_memory_l0_conversations (recorded_at);
 """
 
 
@@ -62,7 +62,7 @@ async def record_turn(
     Returns the row id.
     """
     row = await fetch(
-        """INSERT INTO memory_l0_conversations
+        """INSERT INTO ebrain_memory_l0_conversations
                (session_id, turn_number, role, content, tool_calls, tool_results, metadata, token_count)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING id""",
@@ -85,7 +85,7 @@ async def get_recent_turns(
     """Get recent conversation turns for a session (for L1 extraction)."""
     rows = await fetch(
         """SELECT id, turn_number, role, content, tool_calls, metadata, recorded_at
-           FROM memory_l0_conversations
+           FROM ebrain_memory_l0_conversations
            WHERE session_id = $1
            ORDER BY turn_number DESC
            LIMIT $2""",
@@ -110,11 +110,11 @@ async def count_turns_since_last_extraction(session_id: str) -> int:
     """Count turns since last L1 extraction checkpoint for this session."""
     row = await fetch(
         """SELECT COUNT(*) as cnt
-           FROM memory_l0_conversations
+           FROM ebrain_memory_l0_conversations
            WHERE session_id = $1
              AND id > COALESCE(
                  (SELECT MAX(last_l0_id)
-                  FROM memory_l1_extractions
+                   FROM ebrain_memory_l1_checkpoints
                   WHERE session_id = $1),
                  0
              )""",
@@ -129,7 +129,7 @@ async def cleanup_old_conversations(retention_days: int = 90) -> int:
         return 0
     cutoff = time.time() - retention_days * 86400
     rows = await execute(
-        "DELETE FROM memory_l0_conversations WHERE EXTRACT(EPOCH FROM recorded_at) < $1",
+        "DELETE FROM ebrain_memory_l0_conversations WHERE EXTRACT(EPOCH FROM recorded_at) < $1",
         cutoff,
     )
     deleted = int(rows.replace("DELETE ", "")) if rows and rows.startswith("DELETE") else 0

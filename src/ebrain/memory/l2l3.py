@@ -25,7 +25,7 @@ from ebrain.memory.types import Scene
 _log = logging.getLogger("ebrain.memory.l2l3")
 
 L2_SCHEMA = """
-CREATE TABLE IF NOT EXISTS memory_l2_scenes (
+CREATE TABLE IF NOT EXISTS ebrain_memory_l2_scenes (
     id              TEXT PRIMARY KEY,
     session_id      TEXT NOT NULL,
     title           TEXT NOT NULL,
@@ -35,12 +35,12 @@ CREATE TABLE IF NOT EXISTS memory_l2_scenes (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_memory_l2_session
-    ON memory_l2_scenes (session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ebrain_memory_l2_session
+    ON ebrain_memory_l2_scenes (session_id, created_at);
 """
 
 L3_SCHEMA = """
-CREATE TABLE IF NOT EXISTS memory_l3_personas (
+CREATE TABLE IF NOT EXISTS ebrain_memory_l3_personas (
     session_id          TEXT PRIMARY KEY,
     name                TEXT DEFAULT '',
     role                TEXT DEFAULT '',
@@ -162,7 +162,7 @@ async def build_scenes(
         )
 
         await execute(
-            """INSERT INTO memory_l2_scenes (id, session_id, title, summary, memory_ids, tags)
+            """INSERT INTO ebrain_memory_l2_scenes (id, session_id, title, summary, memory_ids, tags)
                VALUES ($1, $2, $3, $4, $5, $6)
                ON CONFLICT (id) DO NOTHING""",
             scene.id,
@@ -195,7 +195,7 @@ async def generate_persona(
     # Get existing scenes and recent memories
     scene_rows = await fetch(
         """SELECT title, summary, tags
-           FROM memory_l2_scenes
+           FROM ebrain_memory_l2_scenes
            WHERE session_id = $1
            ORDER BY created_at DESC
            LIMIT 15""",
@@ -243,7 +243,7 @@ async def generate_persona(
 
     # Upsert persona
     await execute(
-        """INSERT INTO memory_l3_personas
+        """INSERT INTO ebrain_memory_l3_personas
                (session_id, name, role, traits, preferences, recurring_topics, tools_used, summary, total_memories)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (session_id) DO UPDATE
@@ -274,7 +274,7 @@ async def generate_persona(
 async def get_persona(session_id: str) -> Persona | None:
     """Retrieve the L3 persona for a session."""
     row = await fetch(
-        """SELECT * FROM memory_l3_personas WHERE session_id = $1""",
+        """SELECT * FROM ebrain_memory_l3_personas WHERE session_id = $1""",
         session_id,
     )
     if not row:
@@ -298,7 +298,7 @@ async def get_persona(session_id: str) -> Persona | None:
 async def get_scenes(session_id: str, limit: int = 10) -> list[Scene]:
     """Retrieve L2 scenes for a session."""
     rows = await fetch(
-        """SELECT * FROM memory_l2_scenes
+        """SELECT * FROM ebrain_memory_l2_scenes
            WHERE session_id = $1
            ORDER BY created_at DESC
            LIMIT $2""",

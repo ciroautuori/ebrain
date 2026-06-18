@@ -114,7 +114,7 @@ async def ensure_schema() -> None:
             applied_at TIMESTAMPTZ DEFAULT NOW()
         );
 
-        CREATE TABLE IF NOT EXISTS entities (
+        CREATE TABLE IF NOT EXISTS ebrain_entities (
             id          TEXT PRIMARY KEY,
             name        TEXT NOT NULL,
             kind        TEXT NOT NULL DEFAULT 'concept',
@@ -123,18 +123,18 @@ async def ensure_schema() -> None:
             created_at  TIMESTAMPTZ DEFAULT NOW()
         );
 
-        CREATE TABLE IF NOT EXISTS edges (
+        CREATE TABLE IF NOT EXISTS ebrain_edges (
             id          BIGSERIAL PRIMARY KEY,
-            source_id   TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
-            target_id   TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+            source_id   TEXT NOT NULL REFERENCES ebrain_entities(id) ON DELETE CASCADE,
+            target_id   TEXT NOT NULL REFERENCES ebrain_entities(id) ON DELETE CASCADE,
             kind        TEXT NOT NULL DEFAULT 'relates_to',
             weight      REAL DEFAULT 1.0,
             metadata    JSONB DEFAULT '{}',
             created_at  TIMESTAMPTZ DEFAULT NOW()
         );
 
-        CREATE INDEX IF NOT EXISTS idx_entities_kind ON entities(kind);
-        CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id);
-        CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
-        CREATE INDEX IF NOT EXISTS idx_edges_kind ON edges(kind);
+        CREATE INDEX IF NOT EXISTS idx_ebrain_entities_kind ON ebrain_entities(kind);
+        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_source ON ebrain_edges(source_id);
+        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_target ON ebrain_edges(target_id);
+        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_kind ON ebrain_edges(kind);
     """)

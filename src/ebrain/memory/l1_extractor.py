@@ -26,7 +26,7 @@ from ebrain.memory.types import L1Memory
 _log = logging.getLogger("ebrain.memory.l1")
 
 L1_SCHEMA = """
-CREATE TABLE IF NOT EXISTS memory_l1_extractions (
+CREATE TABLE IF NOT EXISTS ebrain_memory_l1_extractions (
     id              TEXT PRIMARY KEY,
     session_id      TEXT NOT NULL,
     content         TEXT NOT NULL,
@@ -38,18 +38,18 @@ CREATE TABLE IF NOT EXISTS memory_l1_extractions (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS memory_l1_checkpoints (
+CREATE TABLE IF NOT EXISTS ebrain_memory_l1_checkpoints (
     session_id      TEXT PRIMARY KEY,
     last_l0_id      BIGINT NOT NULL DEFAULT 0,
     total_extracted INT NOT NULL DEFAULT 0,
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_memory_l1_session
-    ON memory_l1_extractions (session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ebrain_memory_l1_session
+    ON ebrain_memory_l1_extractions (session_id, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_memory_l1_kind
-    ON memory_l1_extractions (kind);
+CREATE INDEX IF NOT EXISTS idx_ebrain_memory_l1_kind
+    ON ebrain_memory_l1_extractions (kind);
 """
 
 EXTRACTION_PROMPT = """You are a memory extraction engine. From the conversation
@@ -113,7 +113,7 @@ async def _get_existing_memories(session_id: str, limit: int = 50) -> list[dict]
     """Get existing memories for dedup comparison."""
     rows = await fetch(
         """SELECT id, content, kind, keywords
-           FROM memory_l1_extractions
+           FROM ebrain_memory_l1_extractions
            WHERE session_id = $1
            ORDER BY created_at DESC
            LIMIT $2""",
@@ -221,7 +221,7 @@ async def extract_memories(
 
         # Store in PG
         await execute(
-            """INSERT INTO memory_l1_extractions (id, session_id, content, kind, keywords, source_turn, confidence)
+            """INSERT INTO ebrain_memory_l1_extractions (id, session_id, content, kind, keywords, source_turn, confidence)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
                ON CONFLICT (id) DO NOTHING""",
             mem.id,
@@ -238,11 +238,11 @@ async def extract_memories(
     if new_memories and turns:
         last_l0_id = max(t.get("id", 0) for t in turns)
         await execute(
-            """INSERT INTO memory_l1_checkpoints (session_id, last_l0_id, total_extracted)
+            """INSERT INTO ebrain_memory_l1_checkpoints (session_id, last_l0_id, total_extracted)
                VALUES ($1, $2, $3)
                ON CONFLICT (session_id) DO UPDATE
                SET last_l0_id = EXCLUDED.last_l0_id,
-                   total_extracted = memory_l1_checkpoints.total_extracted + EXCLUDED.total_extracted,
+                   total_extracted = ebrain_memory_l1_checkpoints.total_extracted + EXCLUDED.total_extracted,
                    updated_at = NOW()""",
             session_id,
             last_l0_id,
@@ -263,7 +263,7 @@ async def get_memories(
 ) -> list[L1Memory]:
     """Retrieve stored L1 memories for a session."""
     query = """SELECT id, session_id, content, kind, keywords, source_turn, confidence, created_at
-               FROM memory_l1_extractions
+               FROM ebrain_memory_l1_extractions
                WHERE session_id = $1"""
     params: list[Any] = [session_id]
 
@@ -293,7 +293,7 @@ async def get_memories(
 async def count_memories(session_id: str) -> int:
     """Count L1 memories for a session."""
     row = await fetchone(
-        "SELECT COUNT(*) as cnt FROM memory_l1_extractions WHERE session_id = $1",
+        "SELECT COUNT(*) as cnt FROM ebrain_memory_l1_extractions WHERE session_id = $1",
         session_id,
     )
     return row["cnt"] if row else 0
