@@ -23,7 +23,7 @@ _log = logging.getLogger("ebrain.db")
 
 DATABASE_URL = os.environ.get(
     "EBRAIN_DATABASE_URL",
-    "postgresql://eros:eros_dev_2026@127.0.0.1:5433/eros",
+    "postgresql://ebrain:ebrain@127.0.0.1:5433/ebrain",
 )
 
 # ── Pool singleton ────────────────────────────────────────────────────────
