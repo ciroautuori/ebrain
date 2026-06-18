@@ -92,22 +92,22 @@ print(ctx.format_context())
 ┌─────────────────────────────────────────────────────┐
 │                    EBRAIN                           │
 │                                                     │
-│  Conversation  ──→  L0 Recorder  ──→  PostgreSQL   │
-│       │                                           │
-│       ▼                                           │
-│  L1 Extractor  ──→  LLM Extraction  ──→  Qdrant   │
-│       │              + Vector Dedup                │
-│       ▼                                           │
-│  L2 Scene Builder  ──→  Thematic Clusters          │
-│       │                                           │
-│       ▼                                           │
-│  L3 Persona Generator  ──→  Long-term Profile      │
+│  Conversation  ──→  L0 Recorder  ──→  PostgreSQL    │
+│       │                                             │
+│       ▼                                             │
+│  L1 Extractor  ──→  LLM Extraction  ──→  Qdrant     │
+│       │              + Vector Dedup                 │
+│       ▼                                             │
+│  L2 Scene Builder  ──→  Thematic Clusters           │
+│       │                                             │
+│       ▼                                             │
+│  L3 Persona Generator  ──→  Long-term Profile       │
 │                                                     │
-│  ┌──────────────────────────────────────────────┐  │
-│  │ KnowledgeGraph: Entity/Edge/BFS/AutoLink     │  │
-│  │ Dream Cycle: Gap Analysis + Web Enrichment   │  │
-│  │ Offload: Symbolic Context Compression        │  │
-│  └──────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────┐   │
+│  │ KnowledgeGraph: Entity/Edge/BFS/AutoLink     │   │
+│  │ Dream Cycle: Gap Analysis + Web Enrichment   │   │
+│  │ Offload: Symbolic Context Compression        │   │
+│  └──────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────┘
 ```
 
