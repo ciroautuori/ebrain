@@ -1,0 +1,44 @@
+[project]
+name = "ebrain"
+version = "0.1.0"
+description = "EBrain — standalone 4-layer agent memory + knowledge graph system for AI agents. Portable, PostgreSQL + Qdrant, zero cloud lock-in."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+keywords = ["ai", "memory", "agent", "knowledge-graph", "vector-search", "llm"]
+authors = [{name = "Ciro Autuori", email = "ciro@studiocentos.com"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+dependencies = [
+    "asyncpg>=0.30",
+    "qdrant-client>=1.9",
+    "fastembed>=0.3",
+]
+
+[project.optional-dependencies]
+brain = ["qdrant-client>=1.9", "fastembed>=0.3"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.9"]
+
+[project.scripts]
+ebrain = "ebrain.cli:main"
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "F401", "F541", "F811", "F821", "F841", "E501", "E741"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
