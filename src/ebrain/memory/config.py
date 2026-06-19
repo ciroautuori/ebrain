@@ -46,6 +46,9 @@ class MemoryConfig:
     l2_delay_after_l1_seconds: float = 10
     warmup_enabled: bool = True  # accelerate early extraction
 
+    # ── Vault (Obsidian) sync ────────────────────────────────────
+    vault_path: str = ""  # "" = disabled; EBRAIN_VAULT_PATH enables
+
     @classmethod
     def from_env(cls) -> MemoryConfig:
         """Build config from EBRAIN_MEMORY_* environment variables (optional)."""
@@ -86,6 +89,7 @@ class MemoryConfig:
             recall_enabled=_bool("EBRAIN_MEMORY_RECALL_ENABLED", True),
             recall_max_results=_int("EBRAIN_MEMORY_RECALL_MAX_RESULTS", 5),
             recall_score_threshold=_float("EBRAIN_MEMORY_RECALL_SCORE_THRESHOLD", 0.3),
+            vault_path=os.environ.get("EBRAIN_VAULT_PATH", ""),
         )
 
 

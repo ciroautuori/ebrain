@@ -27,6 +27,8 @@ from ebrain.memory.types import Persona
 from ebrain.memory.types import RecallResult
 from ebrain.memory.types import Scene
 from ebrain.migrations import run_migrations
+from ebrain.vault import VaultSync
+from ebrain.vault_ingest import ingest_source
 
 __version__ = "0.1.0"
 
@@ -47,4 +49,6 @@ __all__ = [
     "set_default_model",
     "ask_json",
     "run_migrations",
+    "VaultSync",
+    "ingest_source",
 ]

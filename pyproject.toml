@@ -26,7 +26,8 @@ dependencies = [
 
 [project.optional-dependencies]
 brain = ["qdrant-client>=1.9", "fastembed>=0.3"]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.9", "aiohttp>=3.9"]
+obsidian = ["watchdog>=3.0"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.9", "aiohttp>=3.9", "watchdog>=3.0"]
 
 [project.scripts]
 ebrain = "ebrain.cli:main"

@@ -148,6 +148,7 @@ class MemoryPipeline:
         """Run the full L0→L1→L2→L3 pipeline for a session.
 
         Best called at session end or after N turns.
+        If config.vault_path is set, syncs results to Obsidian vault.
         """
         await self._init_schema()
 
@@ -155,12 +156,42 @@ class MemoryPipeline:
         l2_result = await self.maybe_build_profile(session_id)
         l3_result = await self.maybe_generate_persona(session_id)
 
+        if self.config.vault_path:
+            await self._sync_to_vault(session_id, l1_result, l2_result, l3_result)
+
         return {
             "session_id": session_id,
             "l1_extracted": len(l1_result),
             "l2_scenes": len(l2_result),
             "l3_persona": l3_result is not None,
         }
+
+    async def _sync_to_vault(
+        self,
+        session_id: str,
+        memories: list[L1Memory],
+        scenes: list[Scene],
+        persona: Persona | None,
+    ) -> None:
+        """Write pipeline results to Obsidian vault (non-blocking)."""
+        import asyncio
+
+        from ebrain.vault import VaultSync
+        vs = VaultSync(self.config.vault_path)
+        for mem in memories:
+            await asyncio.to_thread(vs.write_memory, mem)
+        for scene in scenes:
+            await asyncio.to_thread(vs.write_scene, scene)
+        if persona:
+            await asyncio.to_thread(vs.write_persona, persona)
+        if memories or scenes or persona:
+            await asyncio.to_thread(vs.update_index)
+            await asyncio.to_thread(
+                vs.append_log,
+                "pipeline",
+                session_id,
+                {"memories": len(memories), "scenes": len(scenes), "persona": persona is not None},
+            )
 
     # ── Recall ─────────────────────────────────────────────────
 
