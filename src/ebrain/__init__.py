@@ -28,6 +28,7 @@ from ebrain.memory.types import RecallResult
 from ebrain.memory.types import Scene
 from ebrain.migrations import run_migrations
 from ebrain.vault import VaultSync
+from ebrain.vault_daemon import VaultDaemon
 from ebrain.vault_ingest import ingest_source
 
 __version__ = "0.1.0"
@@ -50,5 +51,6 @@ __all__ = [
     "ask_json",
     "run_migrations",
     "VaultSync",
+    "VaultDaemon",
     "ingest_source",
 ]

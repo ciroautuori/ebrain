@@ -142,8 +142,6 @@ async def _cmd_memory(session_id: str) -> None:
 
 
 async def _cmd_vault(args: list[str]) -> None:
-    import signal
-
     from ebrain.vault import VaultSync
 
     def _get_opt(name: str) -> str:
@@ -235,24 +233,8 @@ async def _cmd_vault(args: list[str]) -> None:
         print(f"Vault: {vault.root}")
 
     elif subcmd == "watch":
-        from ebrain.vault_watcher import VaultWatcher
-
-        def _on_change(path: object) -> None:
-            print(f"changed: {path}")
-
-        print(f"Watching: {vault.vault_path}  (Ctrl+C to stop)")
-        watcher = VaultWatcher(vault.vault_path, _on_change)
-        watcher.start()
-        stop_event = __import__("threading").Event()
-
-        def _sig(*_: object) -> None:
-            stop_event.set()
-
-        signal.signal(signal.SIGINT, _sig)
-        signal.signal(signal.SIGTERM, _sig)
-        stop_event.wait()
-        watcher.stop()
-        print("Stopped.")
+        from ebrain.vault_daemon import run_daemon
+        await run_daemon(vault_path)
 
     elif subcmd == "ingest":
         source = _get_opt("--source")
