@@ -21,6 +21,8 @@ from ebrain.db import fetchone
 from ebrain.llm import ask_json
 from ebrain.llm import get_default_model
 from ebrain.memory.config import MemoryConfig
+from ebrain.memory.qdrant import is_near_duplicate
+from ebrain.memory.qdrant import upsert_memory
 from ebrain.memory.types import L1Memory
 
 _log = logging.getLogger("ebrain.memory.l1")
@@ -77,17 +79,6 @@ Conversation:
 {conversation}
 """
 
-DEDUP_PROMPT = """You are a deduplication engine. Given a NEW memory and a list of
-EXISTING memories, determine if the new memory duplicates any existing one.
-
-NEW: {new_memory}
-
-EXISTING:
-{existing_memories}
-
-Return JSON: {{"is_duplicate": true/false, "duplicate_of": "id or null", "reason": "why"}}
-If the new memory says essentially the same thing as an existing one (even rephrased), mark as duplicate.
-If it adds new information, mark as NOT duplicate."""
 
 
 async def ensure_schema() -> None:
@@ -109,53 +100,6 @@ def _build_extraction_prompt(turns: list[dict], max_memories: int) -> str:
     )
 
 
-async def _get_existing_memories(session_id: str, limit: int = 50) -> list[dict]:
-    """Get existing memories for dedup comparison."""
-    rows = await fetch(
-        """SELECT id, content, kind, keywords
-           FROM ebrain_memory_l1_extractions
-           WHERE session_id = $1
-           ORDER BY created_at DESC
-           LIMIT $2""",
-        session_id,
-        limit,
-    )
-    return [
-        {
-            "id": r["id"],
-            "content": r["content"],
-            "kind": r["kind"],
-            "keywords": json.loads(r["keywords"]) if isinstance(r["keywords"], str) else r["keywords"],
-        }
-        for r in rows
-    ]
-
-
-async def _dedup_check(new_memory: dict, existing: list[dict], model: str | None) -> bool:
-    """Check if a new memory duplicates any existing one via LLM."""
-    if not existing:
-        return False
-
-    existing_str = "\n".join(
-        f"ID:{e['id']} [{e['kind']}] {e['content']}" for e in existing[:10]
-    )
-
-    try:
-        result = await ask_json(
-            DEDUP_PROMPT.format(
-                new_memory=f"[{new_memory['kind']}] {new_memory['content']}",
-                existing_memories=existing_str,
-            ),
-            model=model,
-        )
-    except Exception:
-        _log.debug("dedup check failed, assuming no duplicate")
-        return False
-
-    if isinstance(result, dict) and result.get("is_duplicate"):
-        _log.debug("l1 dedup: skipped duplicate '%s'", new_memory.get("content", "")[:80])
-        return True
-    return False
 
 
 async def extract_memories(
@@ -164,26 +108,16 @@ async def extract_memories(
     *,
     config: MemoryConfig,
     model: str | None = None,
-    existing_memories: list[dict] | None = None,
 ) -> list[L1Memory]:
     """Extract L1 memories from conversation turns.
 
-    Args:
-        turns: Recent conversation turns (from L0).
-        session_id: Session identifier.
-        config: Memory pipeline configuration.
-        model: LLM model override.
-        existing_memories: Pre-fetched existing memories for dedup.
-
-    Returns:
-        List of newly extracted and stored L1Memory objects.
+    Dedup via Qdrant cosine similarity (threshold: config.l1_dedup_threshold).
+    Stores each new memory in PG + indexes in Qdrant for future recall.
     """
     if not config.l1_enabled or not turns:
         return []
 
     model = model or config.l1_model or get_default_model()
-    existing = existing_memories or await _get_existing_memories(session_id)
-
     prompt = _build_extraction_prompt(turns, config.l1_max_memories_per_run)
 
     try:
@@ -202,10 +136,10 @@ async def extract_memories(
             continue
         content = str(raw["content"]).strip()
         if len(content) < 10:
-            continue  # too short to be useful
+            continue
 
-        # Dedup check
-        if await _dedup_check(raw, existing, model):
+        if await is_near_duplicate(content, session_id, threshold=config.l1_dedup_threshold):
+            _log.debug("l1 dedup: skipped near-duplicate '%s'", content[:80])
             continue
 
         mem = L1Memory(
@@ -219,7 +153,6 @@ async def extract_memories(
             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         )
 
-        # Store in PG
         await execute(
             """INSERT INTO ebrain_memory_l1_extractions (id, session_id, content, kind, keywords, source_turn, confidence)
                VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -232,6 +165,7 @@ async def extract_memories(
             mem.source_turn,
             mem.confidence,
         )
+        await upsert_memory(mem.id, session_id, content)
         new_memories.append(mem)
 
     # Update checkpoint

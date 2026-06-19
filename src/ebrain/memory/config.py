@@ -48,7 +48,7 @@ class MemoryConfig:
 
     @classmethod
     def from_env(cls) -> MemoryConfig:
-        """Build config from EROS_MEMORY_* environment variables (optional)."""
+        """Build config from EBRAIN_MEMORY_* environment variables (optional)."""
         import os
 
         def _bool(k: str, default: bool) -> bool:
@@ -72,20 +72,20 @@ class MemoryConfig:
                 return default
 
         return cls(
-            l0_enabled=_bool("EROS_MEMORY_L0_ENABLED", True),
-            l0_retention_days=_int("EROS_MEMORY_L0_RETENTION_DAYS", 90),
-            l1_enabled=_bool("EROS_MEMORY_L1_ENABLED", True),
-            l1_every_n_conversations=_int("EROS_MEMORY_L1_EVERY_N", 5),
-            l1_max_memories_per_run=_int("EROS_MEMORY_L1_MAX_PER_RUN", 20),
-            l1_dedup_threshold=_float("EROS_MEMORY_L1_DEDUP_THRESHOLD", 0.85),
-            l2_enabled=_bool("EROS_MEMORY_L2_ENABLED", True),
-            l2_trigger_every_n_memories=_int("EROS_MEMORY_L2_EVERY_N", 50),
-            l2_max_scenes=_int("EROS_MEMORY_L2_MAX_SCENES", 15),
-            l3_enabled=_bool("EROS_MEMORY_L3_ENABLED", True),
-            l3_trigger_every_n_scenes=_int("EROS_MEMORY_L3_EVERY_N", 10),
-            recall_enabled=_bool("EROS_MEMORY_RECALL_ENABLED", True),
-            recall_max_results=_int("EROS_MEMORY_RECALL_MAX_RESULTS", 5),
-            recall_score_threshold=_float("EROS_MEMORY_RECALL_SCORE_THRESHOLD", 0.3),
+            l0_enabled=_bool("EBRAIN_MEMORY_L0_ENABLED", True),
+            l0_retention_days=_int("EBRAIN_MEMORY_L0_RETENTION_DAYS", 90),
+            l1_enabled=_bool("EBRAIN_MEMORY_L1_ENABLED", True),
+            l1_every_n_conversations=_int("EBRAIN_MEMORY_L1_EVERY_N", 5),
+            l1_max_memories_per_run=_int("EBRAIN_MEMORY_L1_MAX_PER_RUN", 20),
+            l1_dedup_threshold=_float("EBRAIN_MEMORY_L1_DEDUP_THRESHOLD", 0.85),
+            l2_enabled=_bool("EBRAIN_MEMORY_L2_ENABLED", True),
+            l2_trigger_every_n_memories=_int("EBRAIN_MEMORY_L2_EVERY_N", 50),
+            l2_max_scenes=_int("EBRAIN_MEMORY_L2_MAX_SCENES", 15),
+            l3_enabled=_bool("EBRAIN_MEMORY_L3_ENABLED", True),
+            l3_trigger_every_n_scenes=_int("EBRAIN_MEMORY_L3_EVERY_N", 10),
+            recall_enabled=_bool("EBRAIN_MEMORY_RECALL_ENABLED", True),
+            recall_max_results=_int("EBRAIN_MEMORY_RECALL_MAX_RESULTS", 5),
+            recall_score_threshold=_float("EBRAIN_MEMORY_RECALL_SCORE_THRESHOLD", 0.3),
         )
 
 

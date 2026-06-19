@@ -44,8 +44,8 @@ class TestMemoryConfig:
     def test_from_env(self, monkeypatch):
         from ebrain.memory.config import MemoryConfig
 
-        monkeypatch.setenv("EROS_MEMORY_L1_ENABLED", "false")
-        monkeypatch.setenv("EROS_MEMORY_L1_EVERY_N", "10")
+        monkeypatch.setenv("EBRAIN_MEMORY_L1_ENABLED", "false")
+        monkeypatch.setenv("EBRAIN_MEMORY_L1_EVERY_N", "10")
         cfg = MemoryConfig.from_env()
         assert cfg.l1_enabled is False
         assert cfg.l1_every_n_conversations == 10

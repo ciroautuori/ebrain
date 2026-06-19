@@ -3,7 +3,7 @@
 <img src="https://img.shields.io/badge/python-3.12+-blue" alt="Python 3.12+">
 <img src="https://img.shields.io/badge/postgresql-17+-336791" alt="PostgreSQL 17+">
 <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
-<img src="https://img.shields.io/badge/tests-22%2F22-brightgreen" alt="Tests">
+<img src="https://img.shields.io/badge/tests-61%2F61-brightgreen" alt="Tests">
 <img src="https://img.shields.io/badge/ruff-clean-purple" alt="Ruff">
 
 </div>
@@ -12,11 +12,11 @@
 
 **Give your AI agents a memory that actually works.**
 
-EBrain is a 4-layer memory system for AI agents, plus a typed knowledge graph. 
-It records conversations, extracts structured knowledge, builds profiles, 
+EBrain is a 4-layer memory system for AI agents, plus a typed knowledge graph.
+It records conversations, extracts structured knowledge, builds profiles,
 and recalls relevant context — all locally, zero cloud lock-in.
 
-Inspired by the [TencentDB Agent Memory](https://github.com/TencentCloud/tencentdb-agent-memory) 
+Inspired by the [TencentDB Agent Memory](https://github.com/TencentCloud/tencentdb-agent-memory)
 architecture (L0→L1→L2→L3 pipeline), reimplemented in Python with PostgreSQL + Qdrant.
 
 ---
@@ -75,11 +75,11 @@ pipeline = MemoryPipeline()
 await pipeline.record("my-agent", "user", "I prefer dark mode everywhere")
 await pipeline.record("my-agent", "user", "The API should return JSON:API format")
 
-# Extract memories (L1)
+# Extract memories (L1) + index in Qdrant for vector recall
 result = await pipeline.run_pipeline("my-agent")
 print(f"Extracted {result['l1_extracted']} memories")
 
-# Recall at session start
+# Recall at session start — vector search (Qdrant) with keyword fallback
 ctx = await recall("What are the user's preferences?", "my-agent")
 print(ctx.format_context())
 ```
@@ -95,7 +95,7 @@ print(ctx.format_context())
 │  Conversation  ──→  L0 Recorder  ──→  PostgreSQL    │
 │       │                                             │
 │       ▼                                             │
-│  L1 Extractor  ──→  LLM Extraction  ──→  Qdrant     │
+│  L1 Extractor  ──→  LLM Extraction  ──→  PG + Qdrant│
 │       │              + Vector Dedup                 │
 │       ▼                                             │
 │  L2 Scene Builder  ──→  Thematic Clusters           │
@@ -116,13 +116,13 @@ print(ctx.format_context())
 | Layer | What | Storage |
 |---|---|---|
 | **L0** | Raw conversation recording (turns, tool calls, metadata) | PostgreSQL `ebrain_memory_l0_conversations` |
-| **L1** | Structured memory extraction (facts, preferences, decisions) with LLM-powered dedup | PostgreSQL `ebrain_memory_l1_extractions` + Qdrant vectors |
+| **L1** | Structured memory extraction (facts, preferences, decisions) with vector dedup via Qdrant | PostgreSQL `ebrain_memory_l1_extractions` + Qdrant `ebrain_memories` |
 | **L2** | Scene/profile building — groups related L1 memories into coherent thematic clusters | PostgreSQL `ebrain_memory_l2_scenes` |
 | **L3** | Persona generation — synthesizes a long-term agent/user identity from accumulated knowledge | PostgreSQL `ebrain_memory_l3_personas` |
 
 ### Knowledge Graph
 
-Typed entities (person, company, tool, client, project, concept, infra, platform, framework) 
+Typed entities (person, company, tool, client, project, concept, infra, platform, framework)
 connected by typed edges (works_at, owns, depends_on, implements, manages, produces, runs).
 
 - **BFS shortest path** between any two entities
@@ -141,7 +141,7 @@ pipeline = MemoryPipeline(config=MemoryConfig(...))
 # L0: Record a turn
 await pipeline.record(session_id, role, content, turn_number=0)
 
-# L1: Trigger extraction if threshold met
+# L1: Trigger extraction if threshold met (extracts + indexes in Qdrant)
 memories = await pipeline.maybe_extract(session_id)
 
 # L2: Build scenes from memories
@@ -172,6 +172,7 @@ stats = await graph.stats()
 ```python
 result = await recall("What database does the app use?", session_id)
 # Returns: RecallResult with .memories, .persona, .scenes
+# Primary: Qdrant vector search. Fallback: keyword search.
 context = result.format_context(max_total_chars=2000)
 ```
 
@@ -201,20 +202,24 @@ ebrain memory session-id          # List memories
 
 ## Configuration
 
+All env vars use the `EBRAIN_*` prefix.
+
 | Environment Variable | Default | Description |
 |---|---|---|
 | `EBRAIN_DATABASE_URL` | `postgresql://ebrain:ebrain@127.0.0.1:5433/ebrain` | PostgreSQL connection |
-| `EROS_MEMORY_L0_ENABLED` | `true` | Enable L0 recording |
-| `EROS_MEMORY_L1_ENABLED` | `true` | Enable L1 extraction |
-| `EROS_MEMORY_L1_EVERY_N` | `5` | Trigger L1 after N conversations |
-| `EROS_MEMORY_L1_MAX_PER_RUN` | `20` | Max memories per extraction |
-| `EROS_MEMORY_L1_DEDUP_THRESHOLD` | `0.85` | Cosine similarity for dedup |
-| `EROS_MEMORY_L2_ENABLED` | `true` | Enable L2 scene building |
-| `EROS_MEMORY_L2_EVERY_N` | `50` | Trigger L2 after N memories |
-| `EROS_MEMORY_L3_ENABLED` | `true` | Enable L3 persona generation |
-| `EROS_MEMORY_RECALL_ENABLED` | `true` | Enable auto-recall |
-| `EROS_MEMORY_RECALL_MAX_RESULTS` | `5` | Max memories per recall |
-| `EROS_MEMORY_RECALL_SCORE_THRESHOLD` | `0.3` | Min similarity for recall |
+| `EBRAIN_QDRANT_HOST` | `127.0.0.1` | Qdrant host |
+| `EBRAIN_QDRANT_PORT` | `6333` | Qdrant port |
+| `EBRAIN_MEMORY_L0_ENABLED` | `true` | Enable L0 recording |
+| `EBRAIN_MEMORY_L1_ENABLED` | `true` | Enable L1 extraction |
+| `EBRAIN_MEMORY_L1_EVERY_N` | `5` | Trigger L1 after N conversations |
+| `EBRAIN_MEMORY_L1_MAX_PER_RUN` | `20` | Max memories per extraction |
+| `EBRAIN_MEMORY_L1_DEDUP_THRESHOLD` | `0.85` | Cosine similarity for vector dedup |
+| `EBRAIN_MEMORY_L2_ENABLED` | `true` | Enable L2 scene building |
+| `EBRAIN_MEMORY_L2_EVERY_N` | `50` | Trigger L2 after N memories |
+| `EBRAIN_MEMORY_L3_ENABLED` | `true` | Enable L3 persona generation |
+| `EBRAIN_MEMORY_RECALL_ENABLED` | `true` | Enable auto-recall |
+| `EBRAIN_MEMORY_RECALL_MAX_RESULTS` | `5` | Max memories per recall |
+| `EBRAIN_MEMORY_RECALL_SCORE_THRESHOLD` | `0.3` | Min similarity for recall |
 
 ---
 
@@ -222,9 +227,18 @@ ebrain memory session-id          # List memories
 
 ```bash
 pip install -e ".[dev]"
+
+# Unit tests (no services required)
+pytest tests/test_ebrain.py -v
+
+# Integration tests (requires PostgreSQL + Qdrant)
+pytest tests/test_integration.py -v
+
+# Full suite
 pytest tests/ -v
-ruff check src/ tests/
 ```
+
+Integration tests run against real services — no mocks. 61 tests total.
 
 ---
 

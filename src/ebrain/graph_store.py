@@ -130,13 +130,13 @@ class KnowledgeGraph:
             conditions.append(f"e.kind = ${len(params)}")
 
         where = " AND ".join(conditions)
-        rows = await fetch(  # noqa: E501
-            f"""SELECT e.*,  # noqa: W291
+        rows = await fetch(
+            f"""SELECT e.*,
                        src.name as source_name, src.kind as source_kind,
                        tgt.name as target_name, tgt.kind as target_kind
                 FROM ebrain_edges e
-                JOIN entities src ON e.source_id = src.id
-                JOIN entities tgt ON e.target_id = tgt.id
+                JOIN ebrain_entities src ON e.source_id = src.id
+                JOIN ebrain_entities tgt ON e.target_id = tgt.id
                 WHERE {where}
                 ORDER BY e.weight DESC
                 LIMIT 50""",
@@ -152,8 +152,8 @@ class KnowledgeGraph:
         ]
 
     async def shortest_path(self, from_id: str, to_id: str, max_depth: int = 5) -> list[str] | None:
-        await self._ensure_schema()
         """BFS shortest path between two entities. Returns list of entity IDs or None."""
+        await self._ensure_schema()
         if from_id == to_id:
             return [from_id]
 
@@ -189,8 +189,8 @@ class KnowledgeGraph:
         }
 
     async def auto_link(self, entity_id: str, text: str) -> list[str]:
-        await self._ensure_schema()
         """Find other entities mentioned in text and create edges automatically."""
+        await self._ensure_schema()
         all_entities = await self.list_entities(limit=500)
         linked: list[str] = []
         text_lower = text.lower()

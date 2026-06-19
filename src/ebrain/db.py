@@ -104,37 +104,9 @@ class Edge:
     created_at: str = ""
 
 
-# ── Migrations ─────────────────────────────────────────────────────────────
+# ── Migrations ─────────────────────────────────────────────────────────────────
 
 async def ensure_schema() -> None:
-    """Create core tables if they don't exist (idempotent)."""
-    await execute("""
-        CREATE TABLE IF NOT EXISTS schema_version (
-            version INT PRIMARY KEY,
-            applied_at TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS ebrain_entities (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            kind        TEXT NOT NULL DEFAULT 'concept',
-            tags        JSONB DEFAULT '[]',
-            metadata    JSONB DEFAULT '{}',
-            created_at  TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE TABLE IF NOT EXISTS ebrain_edges (
-            id          BIGSERIAL PRIMARY KEY,
-            source_id   TEXT NOT NULL REFERENCES ebrain_entities(id) ON DELETE CASCADE,
-            target_id   TEXT NOT NULL REFERENCES ebrain_entities(id) ON DELETE CASCADE,
-            kind        TEXT NOT NULL DEFAULT 'relates_to',
-            weight      REAL DEFAULT 1.0,
-            metadata    JSONB DEFAULT '{}',
-            created_at  TIMESTAMPTZ DEFAULT NOW()
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_ebrain_entities_kind ON ebrain_entities(kind);
-        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_source ON ebrain_edges(source_id);
-        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_target ON ebrain_edges(target_id);
-        CREATE INDEX IF NOT EXISTS idx_ebrain_edges_kind ON ebrain_edges(kind);
-    """)
+    """Run all pending migrations (idempotent). Delegates to ebrain.migrations."""
+    from ebrain.migrations import run_migrations
+    await run_migrations()

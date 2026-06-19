@@ -26,6 +26,7 @@ from ebrain.memory.types import L1Memory
 from ebrain.memory.types import Persona
 from ebrain.memory.types import RecallResult
 from ebrain.memory.types import Scene
+from ebrain.migrations import run_migrations
 
 __version__ = "0.1.0"
 
@@ -45,4 +46,5 @@ __all__ = [
     "set_ask_json",
     "set_default_model",
     "ask_json",
+    "run_migrations",
 ]

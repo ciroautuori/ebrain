@@ -172,6 +172,16 @@ class MemoryPipeline:
         await self._init_schema()
         return await _recall(query, session_id, config=self.config)
 
+    # ── Context manager ────────────────────────────────────────
+
+    async def __aenter__(self) -> "MemoryPipeline":
+        await self._init_schema()
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        from ebrain.db import close_pool
+        await close_pool()
+
     # ── Getters ────────────────────────────────────────────────
 
     async def get_memories(self, session_id: str, limit: int = 50) -> list[L1Memory]:
@@ -195,8 +205,12 @@ _pipeline: MemoryPipeline | None = None
 
 
 def get_pipeline(config: MemoryConfig | None = None) -> MemoryPipeline:
-    """Get or create the global MemoryPipeline singleton."""
+    """Get or create the global MemoryPipeline singleton.
+
+    Pass config only on first call. Subsequent calls with a different config
+    reset the singleton to reflect the new configuration.
+    """
     global _pipeline
-    if _pipeline is None:
+    if _pipeline is None or (config is not None and config is not _pipeline.config):
         _pipeline = MemoryPipeline(config=config)
     return _pipeline

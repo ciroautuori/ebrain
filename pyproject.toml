@@ -5,6 +5,7 @@ description = "EBrain — standalone 4-layer agent memory + knowledge graph syst
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
+package-data = {"ebrain" = ["py.typed"]}
 keywords = ["ai", "memory", "agent", "knowledge-graph", "vector-search", "llm"]
 authors = [{name = "Ciro Autuori", email = "ciro@studiocentos.com"}]
 classifiers = [
@@ -25,7 +26,7 @@ dependencies = [
 
 [project.optional-dependencies]
 brain = ["qdrant-client>=1.9", "fastembed>=0.3"]
-dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.9"]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.9", "aiohttp>=3.9"]
 
 [project.scripts]
 ebrain = "ebrain.cli:main"
@@ -41,4 +42,6 @@ force-single-line = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]

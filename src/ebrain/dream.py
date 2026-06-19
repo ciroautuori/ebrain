@@ -76,9 +76,9 @@ async def analyze_gaps(graph: KnowledgeGraph) -> dict[str, Any]:
     # Get sample edges
     edges_rows = await fetch(
         """SELECT e.kind, src.name as source, tgt.name as target
-           FROM edges e
-           JOIN entities src ON e.source_id = src.id
-           JOIN entities tgt ON e.target_id = tgt.id
+           FROM ebrain_edges e
+           JOIN ebrain_entities src ON e.source_id = src.id
+           JOIN ebrain_entities tgt ON e.target_id = tgt.id
            LIMIT 30"""
     )
     edges_sample = "\n".join(
