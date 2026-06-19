@@ -130,7 +130,9 @@ async def ingest_source(
     wiki_page = wiki_dir / f"{_slug(title)}.md"
     wiki_page.write_text(wiki_body, encoding="utf-8")
 
-    # Upsert entity pages (non-destructive: merge with existing)
+    # Upsert entity pages → vault .md AND PostgreSQL knowledge graph
+    from ebrain.graph_store import KnowledgeGraph
+    kg = KnowledgeGraph()
     entities_added = 0
     for e_raw in entities_raw:
         eid = e_raw.get("id", "").strip()
@@ -140,17 +142,25 @@ async def ingest_source(
         if not eid or not ename:
             continue
         entity = Entity(id=eid, name=ename, kind=ekind, tags=etags)
+
+        # Upsert to PG KG (add_entity is idempotent via ON CONFLICT DO NOTHING)
+        try:
+            await kg.add_entity(eid, ename, kind=ekind, tags=etags)
+        except Exception:
+            pass
+
+        # Upsert to vault (non-destructive)
         entity_path = vault._graph_dir() / f"{eid}.md"
+        source_link = f"[[wiki/{_slug(title)}]]"
         if entity_path.exists():
             existing = entity_path.read_text(encoding="utf-8")
-            if f"[[{_slug(title)}]]" not in existing:
+            if source_link not in existing:
                 with entity_path.open("a", encoding="utf-8") as fh:
-                    fh.write(f"\n## Sources\n- [[wiki/{_slug(title)}]]\n")
+                    fh.write(f"\n## Sources\n- {source_link}\n")
         else:
             vault.write_entity(entity)
-            entity_path_read = vault._graph_dir() / f"{eid}.md"
-            with entity_path_read.open("a", encoding="utf-8") as fh:
-                fh.write(f"\n## Sources\n- [[wiki/{_slug(title)}]]\n")
+            with entity_path.open("a", encoding="utf-8") as fh:
+                fh.write(f"\n## Sources\n- {source_link}\n")
             entities_added += 1
 
     vault.update_index()
