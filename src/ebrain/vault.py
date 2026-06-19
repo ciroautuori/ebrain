@@ -222,6 +222,7 @@ class VaultSync:
         scenes: list[tuple[str, str, str]] = []
         personas: list[tuple[str, str]] = []
         entities: list[tuple[str, str, str]] = []
+        wiki_sources: list[tuple[str, str, str]] = []
 
         for f in sorted(self.root.rglob("*.md")):
             if f.name in ("index.md", "log.md"):
@@ -241,6 +242,8 @@ class VaultSync:
                 personas.append((rel, meta.get("name", f.stem)))
             elif etype == "entity":
                 entities.append((rel, meta.get("id", f.stem), meta.get("name", f.stem)))
+            elif etype == "wiki_source":
+                wiki_sources.append((rel, meta.get("title", f.stem), meta.get("source", "")))
 
         lines = [
             "# EBrain Wiki — Index",
@@ -248,7 +251,8 @@ class VaultSync:
             (
                 f"_Updated: {_now_iso()} · {len(memories)} memories"
                 f" · {len(scenes)} scenes · {len(personas)} personas"
-                f" · {len(entities)} entities_"
+                f" · {len(entities)} entities"
+                f" · {len(wiki_sources)} wiki sources_"
             ),
             "",
         ]
@@ -269,6 +273,13 @@ class VaultSync:
             lines += ["## Personas", "", "| File | Name |", "|---|---|"]
             for path, name in personas:
                 lines.append(f"| [[{path}\\|{name}]] | {name} |")
+            lines.append("")
+
+        if wiki_sources:
+            lines += ["## Wiki Sources", "", "| File | Title | Source |", "|---|---|---|"]
+            for path, title, source in wiki_sources:
+                source_short = Path(source).name if source else "-"
+                lines.append(f"| [[{path}\\|{title[:30]}]] | {title} | {source_short} |")
             lines.append("")
 
         if entities:
@@ -364,10 +375,13 @@ class VaultSync:
 
     def status(self) -> dict:
         """Return page counts per content type."""
-        counts: dict[str, int] = {"memories": 0, "scenes": 0, "personas": 0, "entities": 0}
+        counts: dict[str, int] = {"memories": 0, "scenes": 0, "personas": 0, "entities": 0, "wiki_sources": 0}
         if not self.root.exists():
             return counts
-        subdirs = {"memories": "memories", "scenes": "scenes", "personas": "personas", "entities": "graph"}
+        subdirs = {
+            "memories": "memories", "scenes": "scenes", "personas": "personas",
+            "entities": "graph", "wiki_sources": "wiki",
+        }
         for key, subdir in subdirs.items():
             d = self.root / subdir
             if d.exists():
